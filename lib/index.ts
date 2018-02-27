@@ -11,6 +11,7 @@ import {
 
 const container = new Container();
 const bundlerConfigManager: BundlerConfigManager = container.get(BundlerConfigManager);
+const configManager: ConfigManager = container.get(ConfigManager);
 
 export function bundle(bundlerConfig: BundlerConfig) {
   let tasks: Promise<any>[] = [];

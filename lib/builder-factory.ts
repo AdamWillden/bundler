@@ -128,7 +128,7 @@ export class ConfigManager {
     config.save();
   }
 
-  private createFetchHook(cfg: ValidatedBundleConfig): FetchHook {
+  private async createFetchHook(cfg: ValidatedBundleConfig): FetchHook {
     return (load: any, fetch: (load: any) => any): string | any => {
       let address = sysUtil.fromFileURL(load.address);
       let ext = path.extname(address); // fm.getExtension
@@ -138,7 +138,7 @@ export class ConfigManager {
         return fetch(load);
       }
 
-      let content = fs.readFileSync(address, 'utf8');
+      let content = this.fileManager.readFileSync(address);
       switch (ext) {
         case '.html':
           return this.minifyHtml(content, cfg);

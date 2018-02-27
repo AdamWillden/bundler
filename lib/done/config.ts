@@ -19,7 +19,7 @@ export class Config {
   ) { }
 
   public async load(configPath: string) {
-    let content = await this.fileManager.readFile(configPath);
+    let content = this.fileManager.readFileSync(configPath);
     this.info = this.serializer.parse(content);
     this.path = configPath;
   }

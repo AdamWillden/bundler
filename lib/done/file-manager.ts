@@ -35,6 +35,10 @@ export class FileManager {
     });
   }
 
+  public readFileSync(filePath: string): string {
+    return fs.readFileSync(filePath, this.options);
+  }
+
   public writeFile(filePath: string, content: string): Promise<void>;
   public writeFile(filePath: string, content: string, force: boolean): Promise<void>;
   public writeFile(filePath: string, content: string, force: boolean = false): Promise<void> {

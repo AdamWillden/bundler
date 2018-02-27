@@ -22,11 +22,11 @@ describe('inject bundle', () => {
   });
 
   it('saves bundle config to disk', () => {
-    let appCfg = { bundles: {} };
+    let appCfgs = [{ bundles: {} }];
     let configPath = '';
 
     sandbox.stub(serializer, 'saveAppConfig')
-    sandbox.stub(serializer, 'getAppConfig').returns(appCfg);
+    sandbox.stub(serializer, 'getAppConfig').returns(appCfgs);
     sandbox.stub(sysUtil, 'toFileURL');
 
     let cfg = {

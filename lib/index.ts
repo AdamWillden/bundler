@@ -1,54 +1,52 @@
-import * as Promise from 'bluebird';
-import * as bundler from './bundler';
+import { Container } from 'aurelia-dependency-injection';
+import { BundlerConfigManager } from './done/bundler-config-manager';
+
+import { ConfigManager } from './builder-factory';
 import * as hitb from './html-import-template-bundler';
-import { Config }  from './models';
+import { BundlerConfig }  from './models';
 import {
-  ensureDefaults,
   getBundleConfig,
-  validateConfig,
   getHtmlImportBundleConfig,
 } from './utils';
 
-export * from './unbundle';
+const container = new Container();
+const bundlerConfigManager: BundlerConfigManager = container.get(BundlerConfigManager);
 
-export function bundle(inpConfig: Config) {
+export function bundle(bundlerConfig: BundlerConfig) {
   let tasks: Promise<any>[] = [];
-  let config = ensureDefaults(inpConfig);
-  validateConfig(config);
+  let validatedBundlerConfig = bundlerConfigManager.validateConfig(bundlerConfig);
 
-  Object.keys(config.bundles)
+  Object.keys(bundlerConfig.bundles)
     .forEach(key => {
-      let cfg = config.bundles[key];
+      let cfg = bundlerConfig.bundles[key];
       if (cfg.skip) {
         return;
       }
+
       if (cfg.htmlimport) {
-        tasks.push(hitb.bundle(getHtmlImportBundleConfig(cfg, key, config)));
+        tasks.push(hitb.bundle(getHtmlImportBundleConfig(cfg, key, validatedBundlerConfig)));
       } else {
-        tasks.push(bundler.bundle(getBundleConfig(cfg, key, config)));
+        tasks.push(bundler.bundle(getBundleConfig(cfg, key, bundlerConfig)));
       }
     });
 
   return Promise.all(tasks);
 }
 
-export function depCache(bundleConfig: Config) {
+export function depCache(bundlerConfig: BundlerConfig) {
   let tasks: Promise<any>[] = [];
-  let config = ensureDefaults(bundleConfig);
-  validateConfig(config);
+  bundlerConfigManager.validateConfig(bundlerConfig);
 
-  let bundles = config.bundles;
+  let bundles = bundlerConfig.bundles;
   Object.keys(bundles)
     .forEach(key => {
-      let cfg = bundles[key];
+      let config = bundles[key];
 
-      if (cfg.skip) {
+      if (config.skip || config.htmlimport) {
         return;
       }
-      if (cfg.htmlimport) {
-        return;
-      }
-      tasks.push(bundler.depCache(getBundleConfig(cfg, key, config)));
+
+      tasks.push(bundler.depCache(getBundleConfig(config, key, bundlerConfig)));
     });
 
   return Promise.all(tasks);

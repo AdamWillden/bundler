@@ -1,38 +1,18 @@
 import * as _ from 'lodash';
 import * as revPath from 'rev-path';
 import * as revHash from 'rev-hash';
-import * as fs from 'fs';
-import * as path from 'path';
-import {Config, BundleConfig, ConfigBody, ConfigHeader} from './models';
 
-export function getOutFileName(source: string, fileName: string, rev: boolean) {
+import { Options as CleanCssOptions } from 'clean-css';
+import { Options as HtmlMinifierOptions } from 'html-minifier';
+
+import { BundlerConfig, BundleConfig, ConfigBody, Inject, ValidatedBundlerConfig, ValidatedBundleConfig } from './models';
+
+export function getOutFileName(source: string, fileName: string, rev?: boolean) {
   return rev ? revPath(fileName, revHash(new Buffer(source, 'utf-8'))) : fileName;
 }
 
-export function validateConfig(config: Config) {
-  if (!fs.existsSync(config.baseURL)) {
-    throw new Error(
-      `Path '${path.resolve(config.baseURL)}' does not exist. Please provide a valid 'baseURL' in your bundle configuration.`);
-  }
-  let configPaths: string[] = [];
-  let configPath = config.configPath;
-
-  if (typeof configPath === 'string') {
-    configPaths.push(configPath);
-  } else {
-    configPath.forEach(p => configPaths.push(p));
-  }
-
-  configPaths.forEach(p => {
-    if (!fs.existsSync(p)) {
-      throw new Error(
-        `File '${path.resolve(p)}' was not found! Please provide a valid 'config.js' file for use during bundling.`);
-    }
-  });
-}
-
-export function getHTMLMinOpts(opts: any) {
-  return _.defaultsDeep(opts, {
+export function getHTMLMinOpts(opts?: HtmlMinifierOptions) {
+  return _.defaults<HtmlMinifierOptions>(opts, {
     caseSensitive: true,
     collapseBooleanAttributes: true,
     collapseWhitespace: true,
@@ -50,8 +30,8 @@ export function getHTMLMinOpts(opts: any) {
   });
 }
 
-export function getCSSMinOpts(opts: any) {
-  return _.defaultsDeep(opts, {
+export function getCSSMinOpts(opts?: CleanCssOptions) {
+  return _.defaults<CleanCssOptions>(opts, {
     advanced: true,
     agressiveMerging: true,
     mediaMerging: true,
@@ -60,7 +40,7 @@ export function getCSSMinOpts(opts: any) {
   });
 }
 
-export function getBundleConfig(bundleCfg: ConfigBody, bundleName: string, config: Config) {
+export function getBundleConfig(bundleCfg: ConfigBody, bundleName: string, config: BundlerConfig) {
   return _.defaultsDeep<ConfigBody, BundleConfig>(bundleCfg, {
     baseURL: config.baseURL,
     builderCfg: config.builderCfg,
@@ -73,19 +53,17 @@ export function getBundleConfig(bundleCfg: ConfigBody, bundleName: string, confi
     force: config.force,
     options: {
       depCache: false,
-      cssminopts: {},
-      htmlminopts: {},
       inject: true,
       minify: false,
-      rev: false,
     },
   });
 }
 
-export function getHtmlImportBundleConfig(bundleCfg: ConfigBody, bundleName: string, config: ConfigHeader) {
-  let cfg = _.defaultsDeep<ConfigBody, BundleConfig>(bundleCfg, {
+export function getHtmlImportBundleConfig(bundleCfg: ConfigBody, bundleName: string, config: ValidatedBundlerConfig) {
+  let defaults = {
     htmlimport: true,
-    includes: '*.html',
+    includes: [ '*.html' ],
+    excludes: [],
     bundleName: bundleName,
     options: {
       inject: false
@@ -94,44 +72,23 @@ export function getHtmlImportBundleConfig(bundleCfg: ConfigBody, bundleName: str
     baseURL: config.baseURL,
     configPath: config.configPath,
     builderCfg: config.builderCfg
-  });
+  };
+  let cfg = _.defaultsDeep<ConfigBody, ValidatedBundleConfig>(bundleCfg, defaults);
 
   if (!cfg.options.inject) {
     return cfg;
   }
 
+  let injectOptions: Inject = {
+    indexFile: 'index.html',
+    destFile: 'index.html'
+  };
+
   if (typeof cfg.options.inject === 'boolean') {
-    cfg.options.inject = {
-      indexFile: 'index.html',
-      destFile: 'index.html'
-    };
+    cfg.options.inject = injectOptions;
   } else {
-    cfg.options.inject.indexFile = cfg.options.inject.indexFile || 'index.html';
-    cfg.options.inject.destFile = cfg.options.inject.destFile || 'index.html';
+    _.defaults<Inject>(cfg.options.inject, injectOptions);
   }
 
   return cfg;
-}
-
-export function ensureDefaults(config: Config) {
-  return _.defaults<Config>(config, {
-    baseURL: '.',
-    builderCfg: {},
-    bundles: {},
-    configPath: './config.js',
-    force: false,
-    injectionConfigPath: getDefaultInjectionConfigFilePath(config.configPath),
-  });
-}
-
-function getDefaultInjectionConfigFilePath(configPath: string|string[]) {
-  if (typeof configPath === 'string') {
-    return configPath;
-  }
-
-  if (Array.isArray(configPath)) {
-    return configPath[0];
-  }
-  throw new Error(
-    'No bundle injection config file path provided. Set `injectionConfigPath` property in the bundle config.');
 }

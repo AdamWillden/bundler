@@ -1,4 +1,3 @@
-import * as Promise from 'bluebird';
 import * as cheerio from 'cheerio';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,15 +5,15 @@ import * as globby from 'globby';
 import * as sysUtils from 'systemjs-builder/lib/utils.js';
 import * as utils from './utils';
 import * as Builder from 'systemjs-builder';
-import {BundleConfig, Inject} from './models';
+import {ValidatedBundleConfig, Inject} from './models';
 
-export function bundle(cfg: BundleConfig) {
+export function bundle(cfg: ValidatedBundleConfig) {
   let baseURL = path.resolve(cfg.baseURL);
   let builder = new Builder(cfg.baseURL, cfg.configPath);
   builder.config(cfg.builderCfg);
 
-  let output = generateOutput(baseURL, cfg.includes as string[], builder);
-  let outputFileName = getOutputFileName(baseURL, cfg.bundleName, output, (cfg.options && cfg.options.rev) as boolean);
+  let output = generateOutput(baseURL, cfg.includes, builder);
+  let outputFileName = getOutputFileName(baseURL, cfg.bundleName, output, (cfg.options && cfg.options.rev));
 
   if (fs.existsSync(outputFileName)) {
     if (!cfg.force) {
@@ -26,7 +25,7 @@ export function bundle(cfg: BundleConfig) {
   fs.writeFileSync(outputFileName, output);
 
   if (cfg.options && cfg.options.inject) {
-    injectLink(outputFileName, baseURL, cfg.options.inject as Inject);
+    injectLink(outputFileName, baseURL, cfg.options.inject);
   }
 
   return Promise.resolve();
@@ -41,9 +40,7 @@ export function generateOutput(baseURL: string, includes: string[], builder: Bui
     .forEach((file) => {
       if (file !== '.') {
         file = path.resolve(baseURL, file);
-        let content = fs.readFileSync(file, {
-          encoding: 'utf8'
-        });
+        let content = fs.readFileSync(file, 'utf8');
         let $ = cheerio.load(content);
         let name = getCanonicalName(builder, file, 'view').replace(/!view$/g, '');
 
@@ -56,7 +53,7 @@ export function generateOutput(baseURL: string, includes: string[], builder: Bui
   return templates.join('\n');
 }
 
-export function getOutputFileName(baseURL: string, bundleName: string, output: string, rev: boolean) {
+export function getOutputFileName(baseURL: string, bundleName: string, output: string, rev?: boolean) {
   let outFileName = utils.getOutFileName(output, bundleName + '.html', rev);
   return path.resolve(baseURL, outFileName);
 }
@@ -71,9 +68,7 @@ function injectLink(outfile: string, baseURL: string, inject: Inject) {
 }
 
 function addLink(link: string, indexFile: string, destFile: string) {
-  let content = fs.readFileSync(indexFile, {
-    encoding: 'utf8'
-  });
+  let content = fs.readFileSync(indexFile, 'utf8');
 
   let $ = cheerio.load(content);
 

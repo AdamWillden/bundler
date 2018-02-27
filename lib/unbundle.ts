@@ -1,76 +1,63 @@
-import * as Promise from 'bluebird';
+import { Container } from 'aurelia-dependency-injection';
+import { BundlerConfigManager } from './done/bundler-config-manager';
+import { FileManager } from "./done/file-manager";
+
 import * as cheerio from 'cheerio';
-import * as fs from 'fs';
-import * as path from 'path';
-import { getAppConfig, saveAppConfig } from './config-serializer';
-import {Config, BundleConfig, Inject} from './models';
-import {
-  ensureDefaults,
-  validateConfig,
-  getHtmlImportBundleConfig,
-} from './utils';
+import { BundlerConfig, Inject, ValidatedBundlerConfig, ValidatedBundleConfig} from './models';
+import { getHtmlImportBundleConfig } from './utils';
+import { Config } from "./done/config";
 
-export function unbundle(cfg: Config) {
-  let config =  ensureDefaults(cfg);
-  validateConfig(config);
 
-  let tasks = [
-    removeBundles(config),
-    removeHtmlImportBundles(config)
-  ];
+const container = new Container();
+const bundlerConfigManager: BundlerConfigManager = container.get(BundlerConfigManager);
+const fileManager: FileManager = container.get(FileManager);
 
-  return Promise.all<any>(tasks);
+export function unbundle(bundlerConfig: BundlerConfig) {
+  const validatedBundlerConfig = bundlerConfigManager.validateConfig(bundlerConfig);
+
+  removeBundles(validatedBundlerConfig);
+
+  return removeHtmlImportBundles(validatedBundlerConfig);
 }
 
-function removeBundles(cfg: Config) {
+function removeBundles(cfg: ValidatedBundlerConfig) {
   let configPath = cfg.injectionConfigPath;
-  let appCfg = getAppConfig(configPath as string);
-  delete appCfg.bundles;
-  delete appCfg.depCache;
-  saveAppConfig(configPath as string, appCfg);
-
-  return Promise.resolve();
+  let config: Config = container.get(Config);
+  config.load(configPath);
+  config.removeBundles();
+  config.removeDepCache();
+  config.save();
 }
 
-function removeHtmlImportBundles(config: Config) {
+function removeHtmlImportBundles(config: ValidatedBundlerConfig) {
   let tasks: Promise<any>[] = [];
   Object
     .keys(config.bundles)
     .forEach((key) => {
       let cfg = config.bundles[key];
       if (cfg.htmlimport) {
-        tasks.push(_removeHtmlImportBundle(getHtmlImportBundleConfig(cfg, key, config)));
+        let htmlImportBundleConfig = getHtmlImportBundleConfig(cfg, key, config);
+        tasks.push(_removeHtmlImportBundle(htmlImportBundleConfig));
       }
     });
 
   return Promise.all<any>(tasks);
 }
 
-function _removeHtmlImportBundle(cfg: BundleConfig) {
+async function _removeHtmlImportBundle(cfg: ValidatedBundleConfig) {
   let inject =  cfg.options.inject as Inject;
-  let file = path.resolve(cfg.baseURL, inject.destFile);
+  let file = fileManager.resolve(cfg.baseURL, inject.destFile);
+  let fileExists = await fileManager.fileExists(file);
 
-  if (!fs.existsSync(file)) {
-    return Promise.resolve();
+  if (fileExists) {
+    let content = await fileManager.readFile(file);
+    let html = removeLinkInjections(content);
+    await fileManager.writeFile(file, html);
   }
-
-  return Promise
-    .promisify<string, string, any>(fs.readFile)(file, {
-      encoding: 'utf8'
-    })
-    .then((content) => {
-      let $ = cheerio.load(content);
-      return Promise.resolve($);
-    })
-    .then(($) => {
-      return removeLinkInjections($);
-    })
-    .then(($) => {
-      return Promise.promisify<void, string, string>(fs.writeFile)(file, $.html());
-    });
 }
 
-function removeLinkInjections($: CheerioStatic) {
+function removeLinkInjections(html: string) {
+  let $ = cheerio.load(html);
   $('link[aurelia-view-bundle]').remove();
-  return Promise.resolve($);
+  return $.html();
 }

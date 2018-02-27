@@ -11,27 +11,27 @@ describe('Config Serializer', () => {
 
   it('reads configuration from the config file', () => {
     let cfg = readConfig([inpCfg]);
-    expect(cfg.defaultJSExtensions).to.be.true;
+    expect(cfg[0].defaultJSExtensions).to.be.true;
   });
 
   it('can read configuration from SystemJS', () => {
     let systemJSCfg = 'SystemJS.config({ defaultJSExtensions: true })';
     let cfg = readConfig([systemJSCfg]);
-    expect(cfg.defaultJSExtensions).to.be.true;
+    expect(cfg[0].defaultJSExtensions).to.be.true;
   });
 
   it('reads config from multiple files', () => {
     let inpCfg = 'System.config({ defaultJSExtensions: true })';
     let inpCfg2 = 'System.config({ baseURL : "abc" })';
     let cfg = readConfig([inpCfg, inpCfg2]);
-    expect(cfg.defaultJSExtensions).to.be.true;
-    expect(cfg.baseURL).to.be.equal('abc');
+    expect(cfg[0].defaultJSExtensions).to.be.true;
+    expect(cfg[1].baseURL).to.be.equal('abc');
   });
 
   describe('Multiple config calls', () => {
     it('reads config from single file', () => {
       let inpCfg = `
-SystemJS.config({ 
+SystemJS.config({
   packages: {
     "aurelia-animator-css": {
       "map": {
@@ -40,7 +40,7 @@ SystemJS.config({
     }
   }
 });
-SystemJS.config({ 
+SystemJS.config({
   packages: {
     "siopa-skeleton": {
       "format": "amd"
@@ -49,15 +49,15 @@ SystemJS.config({
 })`;
 
       let cfg = readConfig([inpCfg]);
-      expect(cfg.packages['aurelia-animator-css'].map['aurelia-metadata']).to.be.equal('npm:aurelia-metadata@1.0.3');
-      expect(cfg.packages['siopa-skeleton'].format).to.be.equal('amd');
+      expect(cfg[0].packages['aurelia-animator-css'].map['aurelia-metadata']).to.be.equal('npm:aurelia-metadata@1.0.3');
+      expect(cfg[1].packages['siopa-skeleton'].format).to.be.equal('amd');
     });
 
-    it('should extend the config not orverrite it', () => {
+    it('should extend the config not override it', () => {
       let inpCfg = 'System.config({ defaultJSExtensions: true }); System.config({ baseURL : "abc" })';
       let cfg = readConfig([inpCfg]);
-      expect(cfg.defaultJSExtensions).to.be.true;
-      expect(cfg.baseURL).to.be.equal('abc');
+      expect(cfg[0].defaultJSExtensions).to.be.true;
+      expect(cfg[1].baseURL).to.be.equal('abc');
     });
   });
 
@@ -77,20 +77,20 @@ SystemJS.config({
   }
 });`;
 
-    cfg.bundles = {
+    cfg[0].bundles = {
       'app-bundle.js': [
         'app/boot',
         'app/main'
       ]
     };
 
-    let str = serializeConfig(cfg);
+    let str = serializeConfig(cfg[0]);
     expect(str).to.be.equal(outCfg);
   });
 
   it('can serialize System configuration', () => {
     let cfg = readConfig([inpCfg]);
-    let str = serializeConfig(cfg);
+    let str = serializeConfig(cfg[0]);
     let outCfg =
       `System.config({
   defaultJSExtensions: true
@@ -104,7 +104,7 @@ SystemJS.config({
       `SystemJS.config({
   defaultJSExtensions: true
 });`;
-    let str = serializeConfig(cfg, true);
+    let str = serializeConfig(cfg[0], true);
     expect(str).to.be.equal(outCfg);
   });
 
